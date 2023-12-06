@@ -126,6 +126,8 @@
 #include <epicsExport.h>
 #include <initHooks.h>
 #include <callback.h>
+#include <longinRecord.h>
+#include <epicsStdio.h>
 
 #include "devIocStats.h"
 
@@ -188,6 +190,11 @@ static long ai_clusts_init(int pass);
 static long ai_clusts_init_record(aiRecord *);
 static long ai_clusts_read(aiRecord *);
 
+static long longin_nfs_init(int pass);
+static long longin_nfs_init_record(longinRecord* precord);
+static long longin_nfs_read(longinRecord* precord);
+static long longin_nfs_ioint_info(int cmd, longinRecord* pr, IOSCANPVT* pvt);
+
 static long ao_init_record(aoRecord* pr);
 static long ao_write(aoRecord*);
 
@@ -232,6 +239,15 @@ static void statsCbHighQHiWtrMrk(double*);
 static void statsCbHighQUsed(double*);
 static void statsCbHighQOverruns(double*);
 
+static void statsIPRecv(double *p);
+static void statsIPErr(double *p);
+static void statsUDPRecv(double *p);
+static void statsUDPSend(double *p);
+static void statsUDPErr(double *p);
+static void statsTCPRecv(double *p);
+static void statsTCPSend(double *p);
+static void statsTCPErr(double *p);
+
 struct {
 	char *name;
 	double scan_rate;
@@ -241,7 +257,8 @@ struct {
 	{ "fd_scan_rate",	10.0 },
 	{ "ca_scan_rate", 	15.0 },
     { "queue_scan_rate",	1.0 },
-	{ NULL,			0.0  },
+    { NULL,	0.0 },
+	{ "ip_scan_rate",	30.0 }, /* For both NFS and IP */
 };
 
 static validGetParms statsGetParms[]={
@@ -286,6 +303,14 @@ static validGetParms statsGetParms[]={
 	{ "cbHighQueueHiWtrMrk",	statsCbHighQHiWtrMrk,	QUEUE_TYPE },
 	{ "cbHighQueueUsed",		statsCbHighQUsed,	QUEUE_TYPE },
 	{ "cbHighQueueOverruns",	statsCbHighQOverruns,	QUEUE_TYPE },
+	{ "ip_recv",			statsIPRecv,			NET_TYPE },
+	{ "ip_err",				statsIPErr,				NET_TYPE },
+	{ "udp_recv",			statsUDPRecv,			NET_TYPE },
+	{ "udp_send",			statsUDPSend,			NET_TYPE },
+	{ "udp_err",			statsUDPErr,			NET_TYPE },
+	{ "tcp_recv",			statsTCPRecv,			NET_TYPE },
+	{ "tcp_send",			statsTCPSend,			NET_TYPE },
+	{ "tcp_err",			statsTCPErr,			NET_TYPE },
 	{ NULL,NULL,0 }
 };
 
@@ -295,6 +320,8 @@ aStats devAoStats={ 6,NULL,NULL,ao_init_record,NULL,ao_write,NULL };
 epicsExportAddress(dset,devAoStats);
 aStats devAiClusts = {6,NULL,ai_clusts_init,ai_clusts_init_record,NULL,ai_clusts_read,NULL };
 epicsExportAddress(dset,devAiClusts);
+aStats devLonginNFS = {6, NULL, longin_nfs_init, longin_nfs_init_record, longin_nfs_ioint_info, longin_nfs_read, NULL };
+epicsExportAddress(dset, devLonginNFS);
 
 static memInfo meminfo = {0.0,0.0,0.0,0.0,0.0,0.0};
 static memInfo workspaceinfo = {0.0,0.0,0.0,0.0,0.0,0.0};
@@ -316,6 +343,10 @@ static unsigned cainfo_connex  = 0;
 static epicsTimerQueueId timerQ = 0;
 static epicsMutexId scan_mutex;
 static int caServInitialized = 0;
+nfsStatInfo nfsStats;
+static ipStatInfo ipStats;
+static epicsInt32 needsNetRefresh; // This is a HACK!
+
 
 /* ---------------------------------------------------------------------- */
 
@@ -354,6 +385,21 @@ static void getQueueData() {
         callbackQueueStatus(0, &callbackQStatus);
     #endif
     queueDataInitialized = 1;
+}
+
+static void read_net_data() {
+	if (!needsNetRefresh)
+		return;
+	needsNetRefresh = 0;
+	
+	nfsStatInfo nfsSt = {0};
+	ipStatInfo ipSt = {0};
+	devIocStatsGetNFSStat(&nfsSt, 0);
+	devIocStatsGetIPStat(&ipSt);
+	epicsMutexLock(scan_mutex);
+	nfsStats = nfsSt;
+	ipStats = ipSt;
+	epicsMutexUnlock(scan_mutex);
 }
 
 static void scan_time(int type)
@@ -427,6 +473,11 @@ static void scan_time(int type)
           epicsMutexUnlock(scan_mutex);
           break;
       }
+	  case NET_TYPE:
+	  {
+		needsNetRefresh = 1;
+		break;
+	  }
       default:
         break;
     }
@@ -436,6 +487,90 @@ static void scan_time(int type)
 }
 
 /* -------------------------------------------------------------------- */
+
+static long longin_nfs_init(int pass)
+{
+	if (pass) return 0;
+	devIocStatsGetNFSStat(&nfsStats, 0);
+	return 0;
+}
+
+static long longin_nfs_init_record(longinRecord* precord)
+{
+	int i;
+	char buf[256];
+	unsigned long n = 0;
+	if (sscanf(precord->inp.value.instio.string, "%s %lu", buf, &n) != 2) {
+		recGblRecordError(S_db_badField, precord, "devLonginNfs (longin_nfs_init_record) Bad format");
+		return 1;
+	}
+
+	if (n >= MAX_NFS_STATS) {
+		recGblRecordError(S_db_badField, precord, "devLonginNfs (longin_nfs_init_record) N too large");
+		return 1;
+	}
+
+	const struct { const char* name; unsigned long* p; } ptrs[] = {
+		{"nfs_port", &nfsStats.mounts[n].port},
+		{"nfs_uid", &nfsStats.mounts[n].uid},
+		{"nfs_gid", &nfsStats.mounts[n].gid},
+		{"nfs_nodes", &nfsStats.mounts[n].liveNodes},
+		{"nfs_requests", &nfsStats.mounts[n].rpcRequests},
+		{"nfs_retries", &nfsStats.mounts[n].rpcRetries},
+		{"nfs_errors", &nfsStats.mounts[n].rpcErrors},
+		{"nfs_timeouts", &nfsStats.mounts[n].rpcTimeouts},
+		{"nfs_retry_period", &nfsStats.mounts[n].retryPeriodMS},
+	};
+
+	precord->dpvt = NULL;
+	for (i = 0; i < sizeof(ptrs) / sizeof(ptrs[0]); ++i) {
+		if (!strcmp(buf, ptrs[i].name)) {
+			precord->dpvt = ptrs[i].p;
+			break;
+		}
+	}
+
+	if (!precord->dpvt) {
+		recGblRecordError(S_db_badField, precord, "devLonginNfs (longin_nfs_init_record) Unknown option");
+		return 1;
+	}
+
+	return 0;
+}
+
+static long longin_nfs_read(longinRecord* precord)
+{
+	/* Refresh net data if needed */
+	read_net_data();
+
+	if (precord->dpvt)
+		precord->val = *(unsigned long*)precord->dpvt;
+	precord->udf = 0;
+	return precord->dpvt ? 0 : 1;
+}
+
+static long longin_nfs_ioint_info(int cmd, longinRecord* pr, IOSCANPVT* iopvt)
+{
+	if (!pr->dpvt)
+		return S_dev_badInpType;
+
+	if(cmd==0) /* added */
+	{
+		if(scan[NET_TYPE].total++ == 0)
+		{
+			/* start a watchdog */
+			epicsTimerStartDelay(scan[NET_TYPE].wd, scan[NET_TYPE].rate_sec);
+			scan[NET_TYPE].on = 1;
+		}
+	}
+	else /* deleted */
+	{
+		if(--scan[NET_TYPE].total == 0)
+			scan[NET_TYPE].on=0; /* stop the watchdog */
+	}
+	*iopvt = scan[NET_TYPE].ioscan;
+	return 0;
+}
 
 static long ai_clusts_init(int pass)
 {
@@ -470,6 +605,8 @@ static long ai_init(int pass)
     devIocStatsInitWorkspaceUsage();
     devIocStatsInitSuspTasks();
     devIocStatsInitIFErrors();
+	devIocStatsInitNFSStat();
+	devIocStatsInitIPStat();
     /* Get initial values of a few things that don't change much */
     devIocStatsGetClusterInfo(SYS_POOL, &clustinfo[SYS_POOL]);
     devIocStatsGetClusterInfo(DATA_POOL, &clustinfo[DATA_POOL]);
@@ -478,6 +615,7 @@ static long ai_init(int pass)
     devIocStatsGetCpuUtilization(&loadinfo);
     devIocStatsGetIFErrors(&iferrors);
     devIocStatsGetFDUsage(&fdusage);
+	devIocStatsGetIPStat(&ipStats);
 
     /* Count EPICS records */
     if (pdbbase) {
@@ -939,4 +1077,37 @@ static void statsCbHighQOverruns(double *val)
 #else
     *val = 0;
 #endif
+}
+
+static void statsIPRecv(double *p)
+{
+	*p = ipStats.ipRecv;
+}
+static void statsIPErr(double *p)
+{
+	*p = ipStats.ipErr;
+}
+static void statsUDPRecv(double *p)
+{
+	*p = ipStats.udpRecv;
+}
+static void statsUDPSend(double *p)
+{
+	*p = ipStats.udpSend;
+}
+static void statsUDPErr(double *p)
+{
+	*p = ipStats.udpErr;
+}
+static void statsTCPRecv(double *p)
+{
+	*p = ipStats.tcpRecv;
+}
+static void statsTCPSend(double *p)
+{
+	*p = ipStats.tcpSend;
+}
+static void statsTCPErr(double *p)
+{
+	*p = ipStats.tcpErr;
 }

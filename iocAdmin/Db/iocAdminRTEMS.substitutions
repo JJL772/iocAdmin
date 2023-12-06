@@ -44,3 +44,9 @@ pattern { IOCNAME ,  P   ,  S   , TYPE , FLNK               }
 	{ "$(IOC)"  ,  1   ,  0   , SYS  , "$(IOC):CLUST_1_1_0" }
 	{ "$(IOC)"  ,  1   ,  1   , SYS  , ""                 }
 }
+file iocNetwork.template
+{
+pattern 
+	{ IOCNAME }
+	{ $(IOC) }
+}
