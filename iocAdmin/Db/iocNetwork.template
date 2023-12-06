@@ -1,0 +1,315 @@
+# Network status. incl. TCP, UDP, IP, NFS
+
+record(ai, "$(IOCNAME):NET_IP_RECV") {
+	field(DESC, "Total received IP packets")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@ip_recv")
+}
+
+record(ai, "$(IOCNAME):NET_IP_ERR") {
+	field(DESC, "Total IP packet recv errors")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@ip_err")
+}
+
+record(ai, "$(IOCNAME):NET_UDP_RECV") {
+	field(DESC, "Total received UDP packets")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@udp_recv")
+}
+
+record(ai, "$(IOCNAME):NET_UDP_SEND") {
+	field(DESC, "Total sent UDP packets")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@udp_send")
+}
+
+record(ai, "$(IOCNAME):NET_UDP_ERR") {
+	field(DESC, "Total UDP packets lost due to error")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@udp_err")
+}
+
+record(ai, "$(IOCNAME):NET_TCP_RECV") {
+	field(DESC, "Total received TCP packets")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@tcp_recv")
+}
+
+record(ai, "$(IOCNAME):NET_TCP_SEND") {
+	field(DESC, "Total sent TCP packets")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@tcp_send")
+}
+
+record(ai, "$(IOCNAME):NET_TCP_ERR") {
+	field(DESC, "Total TCP packets lost due to error")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "IOC stats")
+	field(INP, "@tcp_err")
+}
+
+#### NFS Mount 0 ####
+
+record(stringin, "$(IOCNAME):NFS_0_MOUNT") {
+	field(DESC, "Mountpoint for NFS")
+	field(SCAN, "Passive")
+	field(DTYP, "NFS var")
+	field(PINI, "YES")
+	field(INP, "@nfs_mount 0")
+}
+
+record(longin, "$(IOCNAME):NFS_0_REQ_CNT") {
+	field(DESC, "Total number of NFS requests")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_requests 0")
+}
+
+record(longin, "$(IOCNAME):NFS_0_RETRY_CNT") {
+	field(DESC, "Total number of NFS retries")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retries 0")
+}
+
+record(longin, "$(IOCNAME):NFS_0_ERR_CNT") {
+	field(DESC, "Total number of NFS errors")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_errors 0")
+}
+
+record(longin, "$(IOCNAME):NFS_0_TIMEOUT_CNT") {
+	field(DESC, "Total number of NFS timeouts")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_timeouts 0")
+}
+
+record(longin, "$(IOCNAME):NFS_0_NODE_CNT") {
+	field(DESC, "Number of active NFS nodes")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_nodes 0")
+}
+
+record(longin, "$(IOCNAME):NFS_0_RETRY_PERIOD") {
+	field(DESC, "Retry period MS")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retry_period 0")
+}
+
+#### NFS Mount 1 ####
+
+record(stringin, "$(IOCNAME):NFS_1_MOUNT") {
+	field(DESC, "Mountpoint for NFS")
+	field(SCAN, "Passive")
+	field(DTYP, "NFS var")
+	field(PINI, "YES")
+	field(INP, "@nfs_mount 1")
+}
+
+record(longin, "$(IOCNAME):NFS_1_REQ_CNT") {
+	field(DESC, "Total number of NFS requests")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_requests 1")
+}
+
+record(longin, "$(IOCNAME):NFS_1_RETRY_CNT") {
+	field(DESC, "Total number of NFS retries")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retries 1")
+}
+
+record(longin, "$(IOCNAME):NFS_1_ERR_CNT") {
+	field(DESC, "Total number of NFS errors")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_errors 1")
+}
+
+record(longin, "$(IOCNAME):NFS_1_TIMEOUT_CNT") {
+	field(DESC, "Total number of NFS timeouts")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_timeouts 1")
+}
+
+record(longin, "$(IOCNAME):NFS_1_NODE_CNT") {
+	field(DESC, "Number of active NFS nodes")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_nodes 1")
+}
+
+record(longin, "$(IOCNAME):NFS_1_RETRY_PERIOD") {
+	field(DESC, "Retry period MS")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retry_period 1")
+}
+
+#### NFS Mount 2 ####
+
+record(stringin, "$(IOCNAME):NFS_2_MOUNT") {
+	field(DESC, "Mountpoint for NFS")
+	field(SCAN, "Passive")
+	field(DTYP, "NFS var")
+	field(PINI, "YES")
+	field(INP, "@nfs_mount 2")
+}
+record(longin, "$(IOCNAME):NFS_2_REQ_CNT") {
+	field(DESC, "Total number of NFS requests")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_requests 2")
+}
+
+record(longin, "$(IOCNAME):NFS_2_RETRY_CNT") {
+	field(DESC, "Total number of NFS retries")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retries 2")
+}
+
+record(longin, "$(IOCNAME):NFS_2_ERR_CNT") {
+	field(DESC, "Total number of NFS errors")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_errors 2")
+}
+
+record(longin, "$(IOCNAME):NFS_2_TIMEOUT_CNT") {
+	field(DESC, "Total number of NFS timeouts")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_timeouts 2")
+}
+
+record(longin, "$(IOCNAME):NFS_2_NODE_CNT") {
+	field(DESC, "Number of active NFS nodes")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_nodes 2")
+}
+
+record(longin, "$(IOCNAME):NFS_2_RETRY_PERIOD") {
+	field(DESC, "Retry period MS")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retry_period 2")
+}
+
+#### NFS Mount 3 ####
+
+record(stringin, "$(IOCNAME):NFS_3_MOUNT") {
+	field(DESC, "Mountpoint for NFS")
+	field(SCAN, "Passive")
+	field(DTYP, "NFS var")
+	field(PINI, "YES")
+	field(INP, "@nfs_mount 3")
+}
+record(longin, "$(IOCNAME):NFS_3_REQ_CNT") {
+	field(DESC, "Total number of NFS requests")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_requests 3")
+}
+
+record(longin, "$(IOCNAME):NFS_3_RETRY_CNT") {
+	field(DESC, "Total number of NFS retries")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retries 3")
+}
+
+record(longin, "$(IOCNAME):NFS_3_ERR_CNT") {
+	field(DESC, "Total number of NFS errors")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_errors 3")
+}
+
+record(longin, "$(IOCNAME):NFS_3_TIMEOUT_CNT") {
+	field(DESC, "Total number of NFS timeouts")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_timeouts 3")
+}
+
+record(longin, "$(IOCNAME):NFS_3_NODE_CNT") {
+	field(DESC, "Number of active NFS nodes")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_nodes 3")
+}
+
+record(longin, "$(IOCNAME):NFS_3_RETRY_PERIOD") {
+	field(DESC, "Retry period MS")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retry_period 3")
+}
+
+#### NFS Mount 4 ####
+
+record(stringin, "$(IOCNAME):NFS_4_MOUNT") {
+	field(DESC, "Mountpoint for NFS")
+	field(SCAN, "Passive")
+	field(DTYP, "NFS var")
+	field(PINI, "YES")
+	field(INP, "@nfs_mount 4")
+}
+record(longin, "$(IOCNAME):NFS_4_REQ_CNT") {
+	field(DESC, "Total number of NFS requests")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_requests 4")
+}
+
+record(longin, "$(IOCNAME):NFS_4_RETRY_CNT") {
+	field(DESC, "Total number of NFS retries")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retries 4")
+}
+
+record(longin, "$(IOCNAME):NFS_4_ERR_CNT") {
+	field(DESC, "Total number of NFS errors")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_errors 4")
+}
+
+record(longin, "$(IOCNAME):NFS_4_TIMEOUT_CNT") {
+	field(DESC, "Total number of NFS timeouts")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_timeouts 4")
+}
+
+record(longin, "$(IOCNAME):NFS_4_NODE_CNT") {
+	field(DESC, "Number of active NFS nodes")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_nodes 4")
+}
+
+record(longin, "$(IOCNAME):NFS_4_RETRY_PERIOD") {
+	field(DESC, "Retry period MS")
+	field(SCAN, "I/O Intr")
+	field(DTYP, "NFS stats")
+	field(INP, "@nfs_retry_period 4")
+}
+

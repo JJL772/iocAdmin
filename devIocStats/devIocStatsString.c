@@ -155,6 +155,9 @@ static void statsHostName(char *);
 static void statsPwd1(char *);
 static void statsPwd2(char *);
 
+static long nfs_init_record(stringinRecord* precord);
+static long nfs_read(stringinRecord* precord);
+
 static int devIocStatsGetEngineer (char **pval);
 static int devIocStatsGetLocation (char **pval);
 
@@ -182,9 +185,13 @@ static validGetStrParms statsGetStrParms[]={
 sStats devStringinStats  ={5,NULL,stringin_init,stringin_init_record,NULL,stringin_read};
 sStats devStringinEnvVar ={5,NULL,NULL,envvar_init_record,  NULL,envvar_read  };
 sStats devStringinEpics  ={5,NULL,NULL,epics_init_record,   NULL,epics_read   };
+sStats devStringinNFS    ={5,NULL,NULL,nfs_init_record,		NULL, nfs_read    };
 epicsExportAddress(dset,devStringinStats);
 epicsExportAddress(dset,devStringinEnvVar);
 epicsExportAddress(dset,devStringinEpics);
+epicsExportAddress(dset,devStringinNFS);
+
+extern nfsStatInfo nfsStats;
 
 static char *notavail = "<not available>";
 static char *empty    = "";
@@ -193,6 +200,35 @@ static int scriptlen = 0;
 static epicsTimeStamp starttime;
 
 /* ---------------------------------------------------------------------- */
+
+static long nfs_init_record(stringinRecord* precord)
+{
+	const char* str = precord->inp.value.instio.string;
+	char buf[64];
+	unsigned int n = 0;
+	if (sscanf(str, "%s %u", buf, &n) != 2) {
+		recGblRecordError(S_db_badField, precord, "nfs_init_record: Bad instio string");
+		return 1;
+	}
+	if (n >= MAX_NFS_STATS) {
+		recGblRecordError(S_db_badField, precord, "nfs_init_record: N out of range");
+		return 1;
+	}
+	if (strcmp(buf, "nfs_mount") != 0) {
+		recGblRecordError(S_db_badField, precord, "nfs_init_record: Unknown property");
+		return 1;
+	}
+	precord->dpvt = nfsStats.mounts[n].mount;
+	return 0;
+}
+
+static long nfs_read(stringinRecord* precord)
+{
+	if (!precord->dpvt)
+		return 1;
+	//strncpy(precord->val, (char*)precord->dpvt, sizeof(precord->val)); /* This will almost certainly truncate! */
+	return 0;
+}
 
 static long stringin_init(int pass)
 {

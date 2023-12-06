@@ -40,7 +40,8 @@
 #define CA_TYPE		3
 #define QUEUE_TYPE	4
 #define STATIC_TYPE	5
-#define TOTAL_TYPES	6
+#define NET_TYPE	6
+#define TOTAL_TYPES	7
 
 /* Names of environment variables (may be redefined in OSD include) */
 #define STARTUP  "STARTUP"
@@ -77,6 +78,38 @@ typedef struct {
     double iocLoad;
 } loadInfo;
 
+typedef struct {
+	unsigned long ipRecv;	/* How many packets we've recv'ed on the IP layer (TCP + UDP + ICMP + etc.) */
+	unsigned long ipErr;	/* How many packets were lost due to error on IP layer */
+	unsigned long udpRecv;	/* How many UDP packets we've recv'ed */
+	unsigned long udpSend;	/* How many UDP packets we've sent */
+	unsigned long udpErr;	/* How many UDP packets were lost due to errors (i.e. bad cksum) */
+	unsigned long tcpRecv;	/* How many TCP packets we've recv'ed */
+	unsigned long tcpSend;	/* How many TCP packets we've sent */
+	unsigned long tcpErr;	/* How many TCP packets were lost and had to be resent */
+} ipStatInfo;
+
+/* Stats for individual NFS mount */
+typedef struct {
+	char mount[256];
+	char ip[32];
+	unsigned long port;
+	unsigned long uid;
+	unsigned long gid;
+	unsigned long liveNodes;	/* Live NFS nodes */
+	unsigned long rpcRequests;	/* How many RPC requests total */
+	unsigned long rpcRetries;	/* How many RPC retries total */
+	unsigned long rpcErrors;	/* How many RPC errors */
+	unsigned long rpcTimeouts;	/* How many RPC timeouts */
+	unsigned long retryPeriodMS;	/* Retry period in MS */
+} nfsStat;
+
+#define MAX_NFS_STATS 16 /* Max 16 mounts! */
+typedef struct {
+	int numMounts;
+	nfsStat mounts[MAX_NFS_STATS];
+} nfsStatInfo;
+
 /* Functions (API) for OSD layer */
 /* All funcs return 0 (OK) / -1 (ERROR) */
 
@@ -112,6 +145,14 @@ extern int devIocStatsGetClusterUsage (int pool, int *pval);
 /* Network Interface Errors */
 extern int devIocStatsInitIFErrors (void);
 extern int devIocStatsGetIFErrors (ifErrInfo *pval);
+
+/* Network Stats */
+extern int devIocStatsInitIPStat (void);
+extern int devIocStatsGetIPStat (ipStatInfo *pval);
+
+/* NFS stats */
+extern int devIocStatsInitNFSStat (void);
+extern int devIocStatsGetNFSStat (nfsStatInfo *pval, int resolve_mounts);
 
 /* Boot Info */
 extern int devIocStatsInitBootInfo (void);
