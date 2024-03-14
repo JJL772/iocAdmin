@@ -12,7 +12,8 @@
 # for a subset of the cross-compiled target architectures
 # that Base is built for.
 CROSS_COMPILER_TARGET_ARCHS = RTEMS-beatnik
-#CROSS_COMPILER_TARGET_ARCHS = RTEMS-uC5282
+CROSS_COMPILER_TARGET_ARCHS += RTEMS-mvme3100
+CROSS_COMPILER_TARGET_ARCHS += RTEMS-uC5282
 #CROSS_COMPILER_TARGET_ARCHS = RTEMS-pc586
 
 RTEMS_SITE_TOP=/afs/slac/g/controls/development/users/lorelli/rtems
