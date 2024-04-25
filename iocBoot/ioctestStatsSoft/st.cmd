@@ -1,4 +1,4 @@
-#!../../bin/linux-x86_64/testIocStats
+#!../../bin/linux-x86_64/testIocAdmin
 < envPaths
 
 cd ${TOP}
@@ -13,7 +13,7 @@ epicsEnvSet("STARTUP","$(TOP)")
 epicsEnvSet("ST_CMD","st.cmd")
 ## Register all support components
 dbLoadDatabase("dbd/testIocStats.dbd",0,0)
-testIocStats_registerRecordDeviceDriver(pdbbase)
+testIocAdmin_registerRecordDeviceDriver(pdbbase)
 
 ## Load all record instances (VxWorks)
 #dbLoadRecords("db/iocAdminVxWorks.db","IOC=IOCTEST")
