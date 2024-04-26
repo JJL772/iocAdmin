@@ -1,4 +1,9 @@
-
+/*
+ *  Author: Jeremy Lorelli (SLAC)
+ *
+ *  Modification History
+ *
+ */
 #include <devIocStats.h>
 #include <errlog.h>
 
@@ -13,9 +18,7 @@
 #define HOSTNAME_MAX 255
 #define MOUNTPOINT_MAX 255
 
-static int nfsStatFd = -1;
-
-static struct {
+static struct nfsServer_t {
     int ver;
     int port;
     int use;
@@ -32,11 +35,6 @@ int devIocStatsInitNFSStat(void) {
     struct stat st;
     if (stat(PROCFS_FILE, &st) < 0)
         return 0; /** No NFS on this system; silently eat the error **/
-
-    if ((nfsStatFd = open(PROCFS_FILE, O_RDONLY)) < 0) {
-        errlogPrintf("Unable to open %s: %s", PROCFS_FILE, strerror(errno));
-        return -1;
-    }
 
     /* Start filling in nfsServers */
     if (devIocStatsReadNfsServers() < 0) {
@@ -59,101 +57,54 @@ static int devIocStatsReadNfsServers(void) {
     if (stat(PROCFS_NFS_SERVERS, &st) < 0)
         return 0; /* No mounts!! */
 
-    int fd;
-    if ((fd = open(PROCFS_NFS_SERVERS, O_RDONLY)) < 0)
-        return 0; /* No mounts!! */
-
-    char* buf = malloc(st.st_size+1);
-    if (read(fd, buf, st.st_size) < 0) {
-        errlogPrintf("Unable to read %s: %s\n", PROCFS_NFS_SERVERS, strerror(errno));
-        goto error;
-    }
-
-    /* First line just describes columns */
-    char* p = strpbrk(buf, "\n");
-
-    /* No mounts (probably) */
-    if (!p) {
-        close(fd);
+    FILE* fp;
+    if ((fp = fopen(PROCFS_NFS_SERVERS, "r")) == NULL)
         return 0;
-    }
 
-    /* All subsequent lines are mounts */
-    while((p = strpbrk(p, "\n"))) {
-        char line[512];
-        char* val = NULL;
-        ++p;
+    /* Skip whole first line */
+    char* line = NULL;
+    size_t sz;
+    getline(&line, &sz, fp);
+    free(line);
 
-        /* Read a line */
-        int i;
-        for (i = 0; i < sizeof(line)-1 && p[i] != '\n'; ++i)
-            line[i] = p[i];
-        line[i] = 0;
-
-        /* Get NFS version */
-        if ((val = strtok(line, " ")) && *val == 'v')
-            nfsServers[numMounts].ver = atoi(val+1);
-        else
-            goto error;
-
-        /* Don't care about server 'name' */
-        strtok(NULL, " ");
-
-        /* Read PORT */
-        if ((val = strtok(NULL, " ")))
-            nfsServers[numMounts].port = atoi(val);
-        else
-            goto error;
-
-        /* Read number of times used */
-        if ((val = strtok(NULL, " ")))
-            nfsServers[numMounts].use = atoi(val);
-        else
-            goto error;
-
-        /* Copy host name */
-        if ((val = strtok(NULL, " "))) {
-            strncpy(nfsServers[numMounts].hostname, val, HOSTNAME_MAX);
-            nfsServers[numMounts].hostname[HOSTNAME_MAX-1] = 0;
-        }
-        else
-            goto error;
-
+    /* Loop through all of the mounts now */
+    char nv[32];
+    char hostname[255];
+    int port, use;
+    while(fscanf(fp, "%31s %*s %d %d %254s\n", nv, &port, &use, hostname) == 4 && numMounts < MAX_NFS_STATS) {
+        struct nfsServer_t* s = &nfsServers[numMounts];
+        s->use = use;
+        s->port = port;
+        s->ver = atoi(nv+1);
+        strncpy(s->hostname, hostname, sizeof(s->hostname));
+        s->hostname[sizeof(s->hostname)-1] = 0;
         numMounts++;
     }
 
-    close(fd);
-    return 0;
+    fclose(fp);
 
-error:
-    close(fd);
-    return -1;
+    return 0;
 }
 
 /* Read NFS mounts off of procfs */
 static int devIocStatsReadNfsMounts(void) {
     struct stat st;
     if (stat(PROCFS_MOUNTS, &st) < 0) {
-        errlogPrintf("Could not stat %s: %s\n", PROCFS_MOUNTS, strerror(errno));
+        errlogPrintf("%s: Could not stat %s: %s\n", __FUNCTION__, PROCFS_MOUNTS, strerror(errno));
         return -1;
     }
 
-    int fd;
-    if ((fd = open(PROCFS_MOUNTS, O_RDONLY)) < 0) {
-        errlogPrintf("Could not open %s: %s\n", PROCFS_MOUNTS, strerror(errno));
+    FILE* fp = fopen(PROCFS_MOUNTS, "r");
+    if (!fp) {
+        errlogPrintf("%s: Could not open %s: %s\n", __FUNCTION__, PROCFS_MOUNTS, strerror(errno));
         return -1;
     }
 
-    /* Alloc a buffer just big enough for the entire file */
-    char* buf = malloc(st.st_size+1);
-    memset(buf, 0, st.st_size);
-    if (read(fd, buf, st.st_size) < 0)
-        goto error;
-
-    /* Parse line-by-line */
+    char* line = NULL;
+    size_t sz = 0;
     int mnt = 0;
-    for (char* line = strtok(buf, "\n"); line && mnt < MAX_NFS_STATS; line = strtok(NULL, "\n")) {
-        char* val = strtok(NULL, " "); /* Don't care about first part */
+    while((getline(&line, &sz, fp)) >= 0 && mnt < MAX_NFS_STATS) {
+        char* val = strtok(line, " "); /* Don't care about first part */
 
         /* Copy in mountpoint */
         if ((val = strtok(NULL, " "))) {
@@ -169,54 +120,36 @@ static int devIocStatsReadNfsMounts(void) {
             continue;
 
         ++mnt;
+        free(line);
     }
 
-    close(fd);
+    fclose(fp);
     return 0;
-
-error:
-    close(fd);
-    return -1;
 }
 
 int devIocStatsGetNFSStat(nfsStatInfo* p, int resolve_mounts) {
-    if (nfsStatFd < 0)
-        return 0;
-
-    if (lseek(nfsStatFd, 0, SEEK_SET) == (off_t)-1) {
-        errlogPrintf("lseek failed: %s\n", strerror(errno));
+    FILE* fp;
+    if ((fp = fopen(PROCFS_FILE, "r")) == NULL) {
+        errlogPrintf("%s: %s open failed: %s\n", __FUNCTION__, PROCFS_FILE, strerror(errno));
         return -1;
     }
 
-    /* Read the latest data */
-    char buf[512];
-    if (read(nfsStatFd, buf, sizeof(buf)-1) < 0) {
-        return -1;
-    }
+    /* Skip what we don't care about */
+    fscanf(fp, "net %*d %*d %*d %*d\n");
 
-    int calls = 0, retrans = 0;
-
-    /* Parse it! */
-    char* ptr = strtok(buf, "\n");
-    if ((ptr = strtok(NULL, "\n"))) {
-        strtok(NULL, " "); /* Seek to second line */
-
-        if ((ptr = strtok(NULL, " ")))
-            calls = atoi(ptr);
-        if ((ptr = strtok(NULL, " ")))
-            retrans = atoi(ptr);
-    }
+    long calls, retrans;
+    fscanf(fp, "rpc %li %li %*li", &calls, &retrans);
 
     for (int i = 0; i < numMounts; ++i) {
         nfsStat* mnt = &p->mounts[i];
 
         /* The following properties are unsupported by the Linux version of this code */
-        mnt->gid = 0;
-        mnt->liveNodes = 0;
-        mnt->uid = 0;
-        mnt->retryPeriodMS = 0;
-        mnt->rpcTimeouts = 0;
-        mnt->rpcErrors = 0;
+        mnt->gid = -1;
+        mnt->liveNodes = -1;
+        mnt->uid = -1;
+        mnt->retryPeriodMS = -1;
+        mnt->rpcTimeouts = -1;
+        mnt->rpcErrors = -1;
 
         /* Fill in with latest data */
         mnt->rpcRequests = calls;

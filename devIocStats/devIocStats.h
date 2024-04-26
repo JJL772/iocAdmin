@@ -79,29 +79,30 @@ typedef struct {
 } loadInfo;
 
 typedef struct {
-	unsigned long ipRecv;	/* How many packets we've recv'ed on the IP layer (TCP + UDP + ICMP + etc.) */
-	unsigned long ipErr;	/* How many packets were lost due to error on IP layer */
-	unsigned long udpRecv;	/* How many UDP packets we've recv'ed */
-	unsigned long udpSend;	/* How many UDP packets we've sent */
-	unsigned long udpErr;	/* How many UDP packets were lost due to errors (i.e. bad cksum) */
-	unsigned long tcpRecv;	/* How many TCP packets we've recv'ed */
-	unsigned long tcpSend;	/* How many TCP packets we've sent */
-	unsigned long tcpErr;	/* How many TCP packets were lost and had to be resent */
+	long ipRecv;	/* How many packets we've recv'ed on the IP layer (TCP + UDP + ICMP + etc.) */
+	long ipErr;	/* How many packets were lost due to error on IP layer */
+	long udpRecv;	/* How many UDP packets we've recv'ed */
+	long udpSend;	/* How many UDP packets we've sent */
+	long udpErr;	/* How many UDP packets were lost due to errors (i.e. bad cksum) */
+	long tcpRecv;	/* How many TCP segments we've recv'ed */
+	long tcpSend;	/* How many TCP segments we've sent */
+	long tcpErr;	/* How many TCP segments were lost (timed out, failed to send, etc.) */
+	long tcpRetrans;	/* How many TCP segments had to be retransmitted */
 } ipStatInfo;
 
 /* Stats for individual NFS mount */
 typedef struct {
 	char mount[128];
 	char ip[32];
-	unsigned long port;
-	unsigned long uid;
-	unsigned long gid;
-	unsigned long liveNodes;	/* Live NFS nodes */
-	unsigned long rpcRequests;	/* How many RPC requests total */
-	unsigned long rpcRetries;	/* How many RPC retries total */
-	unsigned long rpcErrors;	/* How many RPC errors */
-	unsigned long rpcTimeouts;	/* How many RPC timeouts */
-	unsigned long retryPeriodMS;	/* Retry period in MS */
+	long port;
+	long uid;
+	long gid;
+	long liveNodes;	/* Live NFS nodes */
+	long rpcRequests;	/* How many RPC requests total */
+	long rpcRetries;	/* How many RPC retries total */
+	long rpcErrors;	/* How many RPC errors */
+	long rpcTimeouts;	/* How many RPC timeouts */
+	long retryPeriodMS;	/* Retry period in MS */
 } nfsStat;
 
 #define MAX_NFS_STATS 8 /* Max 8 mounts! */

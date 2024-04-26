@@ -128,6 +128,8 @@
 #include <callback.h>
 #include <longinRecord.h>
 #include <epicsStdio.h>
+#include <recGbl.h>
+#include <alarm.h>
 
 #include "devIocStats.h"
 
@@ -161,7 +163,7 @@ struct pvtClustArea
 };
 typedef struct pvtClustArea pvtClustArea;
 
-typedef void (*statGetFunc)(double*);
+typedef void (*statGetFunc)(double*,dbCommon*);
 
 struct validGetParms
 {
@@ -198,55 +200,55 @@ static long longin_nfs_ioint_info(int cmd, longinRecord* pr, IOSCANPVT* pvt);
 static long ao_init_record(aoRecord* pr);
 static long ao_write(aoRecord*);
 
-static void statsFreeBytes(double*);
-static void statsFreeBlocks(double*);
-static void statsAllocBytes(double*);
-static void statsAllocBlocks(double*);
-static void statsMaxFree(double*);
-static void statsTotalBytes(double*);
-static void statsWSFreeBytes(double*);
-static void statsWSAllocBytes(double*);
-static void statsWSTotalBytes(double*);
-static void statsCpuUsage(double*);
-static void statsCpuUtilization(double*);
-static void statsNoOfCpus(double*);
-static void statsSuspendedTasks(double*);
-static void statsFdUsage(double*);
-static void statsFdMax(double*);
-static void statsCAConnects(double*);
-static void statsCAClients(double*);
-static void statsMinDataMBuf(double*);
-static void statsMinSysMBuf(double*);
-static void statsDataMBuf(double*);
-static void statsSysMBuf(double*);
-static void statsIFIErrs(double *);
-static void statsIFOErrs(double *);
-static void statsRecords(double *);
-static void statsPID(double *);
-static void statsPPID(double *);
-static void statsScanOnceQHiWtrMrk(double*);
-static void statsScanOnceQUsed(double*);
-static void statsScanOnceQSize(double*);
-static void statsScanOnceQOverruns(double*);
-static void statsCbQSize(double*);
-static void statsCbLowQHiWtrMrk(double*);
-static void statsCbLowQUsed(double*);
-static void statsCbLowQOverruns(double*);
-static void statsCbMediumQHiWtrMrk(double*);
-static void statsCbMediumQUsed(double*);
-static void statsCbMediumQOverruns(double*);
-static void statsCbHighQHiWtrMrk(double*);
-static void statsCbHighQUsed(double*);
-static void statsCbHighQOverruns(double*);
+static void statsFreeBytes(double*, dbCommon*);
+static void statsFreeBlocks(double*, dbCommon*);
+static void statsAllocBytes(double*, dbCommon*);
+static void statsAllocBlocks(double*, dbCommon*);
+static void statsMaxFree(double*, dbCommon*);
+static void statsTotalBytes(double*, dbCommon*);
+static void statsWSFreeBytes(double*, dbCommon*);
+static void statsWSAllocBytes(double*, dbCommon*);
+static void statsWSTotalBytes(double*, dbCommon*);
+static void statsCpuUsage(double*, dbCommon*);
+static void statsCpuUtilization(double*, dbCommon*);
+static void statsNoOfCpus(double*, dbCommon*);
+static void statsSuspendedTasks(double*, dbCommon*);
+static void statsFdUsage(double*, dbCommon*);
+static void statsFdMax(double*, dbCommon*);
+static void statsCAConnects(double*, dbCommon*);
+static void statsCAClients(double*, dbCommon*);
+static void statsMinDataMBuf(double*, dbCommon*);
+static void statsMinSysMBuf(double*, dbCommon*);
+static void statsDataMBuf(double*, dbCommon*);
+static void statsSysMBuf(double*, dbCommon*);
+static void statsIFIErrs(double *, dbCommon*);
+static void statsIFOErrs(double *, dbCommon*);
+static void statsRecords(double *, dbCommon*);
+static void statsPID(double *, dbCommon*);
+static void statsPPID(double *, dbCommon*);
+static void statsScanOnceQHiWtrMrk(double*, dbCommon*);
+static void statsScanOnceQUsed(double*, dbCommon*);
+static void statsScanOnceQSize(double*, dbCommon*);
+static void statsScanOnceQOverruns(double*, dbCommon*);
+static void statsCbQSize(double*, dbCommon*);
+static void statsCbLowQHiWtrMrk(double*, dbCommon*);
+static void statsCbLowQUsed(double*, dbCommon*);
+static void statsCbLowQOverruns(double*, dbCommon*);
+static void statsCbMediumQHiWtrMrk(double*, dbCommon*);
+static void statsCbMediumQUsed(double*, dbCommon*);
+static void statsCbMediumQOverruns(double*, dbCommon*);
+static void statsCbHighQHiWtrMrk(double*, dbCommon*);
+static void statsCbHighQUsed(double*, dbCommon*);
+static void statsCbHighQOverruns(double*, dbCommon*);
 
-static void statsIPRecv(double *p);
-static void statsIPErr(double *p);
-static void statsUDPRecv(double *p);
-static void statsUDPSend(double *p);
-static void statsUDPErr(double *p);
-static void statsTCPRecv(double *p);
-static void statsTCPSend(double *p);
-static void statsTCPErr(double *p);
+static void statsIPRecv(double *p, dbCommon*);
+static void statsIPErr(double *p, dbCommon*);
+static void statsUDPRecv(double *p, dbCommon*);
+static void statsUDPSend(double *p, dbCommon*);
+static void statsUDPErr(double *p, dbCommon*);
+static void statsTCPRecv(double *p, dbCommon*);
+static void statsTCPSend(double *p, dbCommon*);
+static void statsTCPErr(double *p, dbCommon*);
 
 struct {
 	char *name;
@@ -510,7 +512,7 @@ static long longin_nfs_init_record(longinRecord* precord)
 		return 1;
 	}
 
-	const struct { const char* name; unsigned long* p; } ptrs[] = {
+	const struct { const char* name; long* p; } ptrs[] = {
 		{"nfs_port", &nfsStats.mounts[n].port},
 		{"nfs_uid", &nfsStats.mounts[n].uid},
 		{"nfs_gid", &nfsStats.mounts[n].gid},
@@ -815,7 +817,7 @@ static long ai_read(aiRecord* pr)
     if (!pvt) return S_dev_badInpType;
 
     epicsMutexLock(scan_mutex);
-    statsGetParms[pvt->index].func(&val);
+    statsGetParms[pvt->index].func(&val, (dbCommon*)pr);
     epicsMutexUnlock(scan_mutex);
     pr->val = val;
     pr->udf = 0;
@@ -841,114 +843,114 @@ static double minMBuf(int pool)
     return (lowest * 100);
 }
 
-static void statsFreeBytes(double* val)
+static void statsFreeBytes(double* val, dbCommon* pr)
 {
     *val = meminfo.numBytesFree;
 }
-static void statsFreeBlocks(double* val)
+static void statsFreeBlocks(double* val, dbCommon* pr)
 {
     *val = meminfo.numBlocksFree;
 }
-static void statsAllocBytes(double* val)
+static void statsAllocBytes(double* val, dbCommon* pr)
 {
     *val = meminfo.numBytesAlloc;
 }
-static void statsAllocBlocks(double* val)
+static void statsAllocBlocks(double* val, dbCommon* pr)
 {
     *val = meminfo.numBlocksAlloc;
 }
-static void statsMaxFree(double* val)
+static void statsMaxFree(double* val, dbCommon* pr)
 {
     *val = meminfo.maxBlockSizeFree;
 }
-static void statsTotalBytes(double* val)
+static void statsTotalBytes(double* val, dbCommon* pr)
 {
     *val = meminfo.numBytesTotal;
 }
-static void statsWSAllocBytes(double* val)
+static void statsWSAllocBytes(double* val, dbCommon* pr)
 {
     *val = workspaceinfo.numBytesAlloc;
 }
-static void statsWSFreeBytes(double* val)
+static void statsWSFreeBytes(double* val, dbCommon* pr)
 {
     *val = workspaceinfo.numBytesFree;
 }
-static void statsWSTotalBytes(double* val)
+static void statsWSTotalBytes(double* val, dbCommon* pr)
 {
     *val = workspaceinfo.numBytesTotal;
 }
-static void statsCpuUsage(double* val)
+static void statsCpuUsage(double* val, dbCommon* pr)
 {
     *val = loadinfo.cpuLoad;
 }
-static void statsCpuUtilization(double* val)
+static void statsCpuUtilization(double* val, dbCommon* pr)
 {
     *val = loadinfo.iocLoad;
 }
-static void statsNoOfCpus(double* val)
+static void statsNoOfCpus(double* val, dbCommon* pr)
 {
     *val = (double)loadinfo.noOfCpus;
 }
-static void statsSuspendedTasks(double *val)
+static void statsSuspendedTasks(double *val, dbCommon* pr)
 {
     *val = (double)susptasknumber;
 }
-static void statsFdUsage(double* val)
+static void statsFdUsage(double* val, dbCommon* pr)
 {
     *val = (double)fdusage.used;
 }
-static void statsFdMax(double* val)
+static void statsFdMax(double* val, dbCommon* pr)
 {
     *val = (double)fdusage.max;
 }
-static void statsCAClients(double* val)
+static void statsCAClients(double* val, dbCommon* pr)
 {
     *val = (double)cainfo_clients;
 }
-static void statsCAConnects(double* val)
+static void statsCAConnects(double* val, dbCommon* pr)
 {
     *val = (double)cainfo_connex;
 }
-static void statsMinSysMBuf(double* val)
+static void statsMinSysMBuf(double* val, dbCommon* pr)
 {
     *val = minMBuf(SYS_POOL);
 }
-static void statsMinDataMBuf(double* val)
+static void statsMinDataMBuf(double* val, dbCommon* pr)
 {
     *val = minMBuf(DATA_POOL);
 }
-static void statsSysMBuf(double* val)
+static void statsSysMBuf(double* val, dbCommon* pr)
 {
     *val = (double)mbufnumber[SYS_POOL];
 }
-static void statsDataMBuf(double* val)
+static void statsDataMBuf(double* val, dbCommon* pr)
 {
     *val = (double)mbufnumber[DATA_POOL];
 }
-static void statsIFIErrs(double* val)
+static void statsIFIErrs(double* val, dbCommon* pr)
 {
     *val = (double)iferrors.ierrors;
 }
-static void statsIFOErrs(double* val)
+static void statsIFOErrs(double* val, dbCommon* pr)
 {
     *val = (double)iferrors.oerrors;
 }
-static void statsRecords(double *val)
+static void statsRecords(double *val, dbCommon* pr)
 {
     *val = (double)recordnumber;
 }
-static void statsPID(double *val)
+static void statsPID(double *val, dbCommon* pr)
 {
     *val = 0;
     devIocStatsGetPID(val);
 }
-static void statsPPID(double *val)
+static void statsPPID(double *val, dbCommon* pr)
 {
     *val = 0;
     devIocStatsGetPPID(val);
 }
 
-static void statsScanOnceQHiWtrMrk(double *val)
+static void statsScanOnceQHiWtrMrk(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -957,7 +959,7 @@ static void statsScanOnceQHiWtrMrk(double *val)
     *val = 0;
 #endif
 }
-static void statsScanOnceQUsed(double *val)
+static void statsScanOnceQUsed(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -966,7 +968,7 @@ static void statsScanOnceQUsed(double *val)
     *val = 0;
 #endif
 }
-static void statsScanOnceQSize(double *val)
+static void statsScanOnceQSize(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -975,7 +977,7 @@ static void statsScanOnceQSize(double *val)
     *val = 0;
 #endif
 }
-static void statsScanOnceQOverruns(double *val)
+static void statsScanOnceQOverruns(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -985,7 +987,7 @@ static void statsScanOnceQOverruns(double *val)
 #endif
 }
 
-static void statsCbQSize(double *val)
+static void statsCbQSize(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -995,7 +997,7 @@ static void statsCbQSize(double *val)
 #endif
 }
 
-static void statsCbLowQHiWtrMrk(double *val)
+static void statsCbLowQHiWtrMrk(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1004,7 +1006,7 @@ static void statsCbLowQHiWtrMrk(double *val)
     *val = 0;
 #endif
 }
-static void statsCbLowQUsed(double *val)
+static void statsCbLowQUsed(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1013,7 +1015,7 @@ static void statsCbLowQUsed(double *val)
     *val = 0;
 #endif
 }
-static void statsCbLowQOverruns(double *val)
+static void statsCbLowQOverruns(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1023,7 +1025,7 @@ static void statsCbLowQOverruns(double *val)
 #endif
 }
 
-static void statsCbMediumQHiWtrMrk(double *val)
+static void statsCbMediumQHiWtrMrk(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1032,7 +1034,7 @@ static void statsCbMediumQHiWtrMrk(double *val)
     *val = 0;
 #endif
 }
-static void statsCbMediumQUsed(double *val)
+static void statsCbMediumQUsed(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1041,7 +1043,7 @@ static void statsCbMediumQUsed(double *val)
     *val = 0;
 #endif
 }
-static void statsCbMediumQOverruns(double *val)
+static void statsCbMediumQOverruns(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1051,7 +1053,7 @@ static void statsCbMediumQOverruns(double *val)
 #endif
 }
 
-static void statsCbHighQHiWtrMrk(double *val)
+static void statsCbHighQHiWtrMrk(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1060,7 +1062,7 @@ static void statsCbHighQHiWtrMrk(double *val)
     *val = 0;
 #endif
 }
-static void statsCbHighQUsed(double *val)
+static void statsCbHighQUsed(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1069,7 +1071,7 @@ static void statsCbHighQUsed(double *val)
     *val = 0;
 #endif
 }
-static void statsCbHighQOverruns(double *val)
+static void statsCbHighQOverruns(double *val, dbCommon* pr)
 {
 #if BASE_HAS_QUEUE_STATUS
     if(!queueDataInitialized) getQueueData();
@@ -1079,35 +1081,46 @@ static void statsCbHighQOverruns(double *val)
 #endif
 }
 
-static void statsIPRecv(double *p)
+static void statsIpReadGeneric(double *p, long *val, dbCommon *pr)
 {
-	*p = ipStats.ipRecv;
+	/* Value of <0 indicates unsupported, so set an alarm indicating that */
+	if (*val < 0) {
+		recGblSetSevr(pr, READ_ALARM, INVALID_ALARM);
+		*p = 0;
+	}
+	else
+		*p = *val;
 }
-static void statsIPErr(double *p)
+
+static void statsIPRecv(double *p, dbCommon* pr)
 {
-	*p = ipStats.ipErr;
+	statsIpReadGeneric(p, &ipStats.ipRecv, pr);
 }
-static void statsUDPRecv(double *p)
+static void statsIPErr(double *p, dbCommon* pr)
 {
-	*p = ipStats.udpRecv;
+	statsIpReadGeneric(p, &ipStats.ipErr, pr);
 }
-static void statsUDPSend(double *p)
+static void statsUDPRecv(double *p, dbCommon* pr)
 {
-	*p = ipStats.udpSend;
+	statsIpReadGeneric(p, &ipStats.udpRecv, pr);
 }
-static void statsUDPErr(double *p)
+static void statsUDPSend(double *p, dbCommon* pr)
 {
-	*p = ipStats.udpErr;
+	statsIpReadGeneric(p, &ipStats.udpSend, pr);
 }
-static void statsTCPRecv(double *p)
+static void statsUDPErr(double *p, dbCommon* pr)
 {
-	*p = ipStats.tcpRecv;
+	statsIpReadGeneric(p, &ipStats.udpErr, pr);
 }
-static void statsTCPSend(double *p)
+static void statsTCPRecv(double *p, dbCommon* pr)
 {
-	*p = ipStats.tcpSend;
+	statsIpReadGeneric(p, &ipStats.tcpRecv, pr);
 }
-static void statsTCPErr(double *p)
+static void statsTCPSend(double *p, dbCommon* pr)
 {
-	*p = ipStats.tcpErr;
+	statsIpReadGeneric(p, &ipStats.tcpSend, pr);
+}
+static void statsTCPErr(double *p, dbCommon* pr)
+{
+	statsIpReadGeneric(p, &ipStats.tcpErr, pr);
 }
